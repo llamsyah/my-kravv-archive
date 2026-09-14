@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MY KRAVV — Kalkulator Valuasi & Jurnal Tesis Investasi</title>
+  <meta name="description" content="Alat personal untuk kalkulator valuasi saham, skoring fundamental, dan jurnal tesis investasi. Powered by MY KRAVV." />
+
+  <!-- GOOGLE FONTS — Plus Jakarta Sans (modern, premium feel) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- DELETE CONFIRMATION MODAL -->
+  <div class="modal-backdrop" id="deleteModal" role="dialog" aria-modal="true">
+    <div class="modal-dialog">
+      <p class="modal-title">Hapus Analisis?</p>
+      <p class="modal-body" id="deleteModalBody">Analisis untuk saham ini akan dihapus dari arsip. Tindakan ini tidak dapat dibatalkan.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="cancelDelete" onclick="closeDeleteModal()">Batal</button>
+        <button class="btn btn-confirm-delete" id="confirmDelete">Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN / REGISTER MODAL -->
+  <div class="modal-backdrop" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+    <div class="modal-dialog login-dialog">
+      <button type="button" class="modal-close" onclick="closeLoginModal()" aria-label="Tutup">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+
+      <div class="login-header">
+        <div class="login-icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        </div>
+        <p class="modal-title" id="loginModalTitle">Masuk ke Akun</p>
+        <p class="modal-body login-subtitle" id="loginModalSubtitle">Simpan & sinkronkan arsip analisismu di perangkat ini.</p>
+      </div>
+
+      <form id="loginForm" class="login-form" onsubmit="handleAuthSubmit(event)" autocomplete="on">
+        <div class="form-group">
+          <label class="form-label" for="authEmail">Email</label>
+          <input type="email" id="authEmail" class="form-input" placeholder="kamu@email.com" autocomplete="email" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="authPassword">
+            Password
+            <span class="hint">Min. 6 karakter</span>
+          </label>
+          <input type="password" id="authPassword" class="form-input" placeholder="••••••••" minlength="6" autocomplete="current-password" required />
+        </div>
+
+        <div class="form-group" id="confirmPasswordGroup" style="display:none;">
+          <label class="form-label" for="authPasswordConfirm">Konfirmasi Password</label>
+          <input type="password" id="authPasswordConfirm" class="form-input" placeholder="••••••••" minlength="6" autocomplete="new-password" />
+        </div>
+
+        <p class="login-error" id="loginError" style="display:none;"></p>
+
+        <button type="submit" class="btn btn-primary" id="authSubmitBtn">Masuk</button>
+      </form>
+
+      <p class="login-switch">
+        <span id="authSwitchText">Belum punya akun?</span>
+        <button type="button" class="login-switch-link" onclick="toggleAuthMode()" id="authSwitchLink">Daftar di sini</button>
+      </p>
+
+      <p class="login-note">Data akun disimpan lokal di perangkat ini — belum tersambung ke server.</p>
+    </div>
+  </div>
+
+  <!-- APP WRAPPER -->
+  <div class="app-wrapper">
+
+    <!-- Top navigation bar -->
+    <nav class="top-nav" role="navigation" aria-label="Main navigation">
+      
+      <!-- Logo -->
+      <div class="logo-group">
+        <img src="logo-kravv.png" alt="MY KRAVV Logo" class="logo-img-custom" onerror="this.style.display='none'">
+        <div class="logo-text">
+          <span class="logo-title">MY KRAVV</span>
+          <span class="logo-subtitle">Stock Valuation & Thesis</span>
+        </div>
+      </div>
+
+      <!-- Navigation + auth -->
+      <div class="nav-right">
+        
+       <div class="nav-tabs">
+  <button class="nav-tab active" id="tab-calculator"
+    onclick="switchTab('calculator')">
+    Kalkulator
+  </button>
+
+  <button class="nav-tab" id="tab-draft"
+    onclick="switchTab('draft')">
+    Draft
+  </button>
+
+  <button class="nav-tab" id="tab-archive"
+    onclick="switchTab('archive')">
+    Arsip
+  </button>
+
+  <button class="nav-tab" id="tab-guide"
+    onclick="switchTab('guide')">
+    Panduan
+  </button>
+</div>
+        <!-- Login button -->
+        <div class="auth-group">
+          <button class="btn btn-login" id="authButton" onclick="handleAuthButtonClick()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+            <span id="authButtonLabel">Masuk</span>
+          </button>
+        </div>
+
+      </div>
+    </nav>
+
+    <!-- View: Calculator -->
+    <div class="view active" id="view-calculator" role="tabpanel" aria-labelledby="tab-calculator">
+
+      <!-- Section header -->
+      <div class="section-header">
+        <div class="dot"></div>
+        <span class="section-title">Kalkulator Valuasi & Tesis</span>
+        <div class="section-line"></div>
+      </div>
+
+     <!-- Main grid: form | results -->
+      <div class="main-grid">
+
+        <!-- Left column: input form -->
+        <div class="card">
+          <h2 class="card-title">
+            <div class="icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-bright)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            </div>
+            Input Data Fundamental
+          </h2>
+
+          <!-- Ticker code -->
+          <div class="form-group">
+            <label class="form-label" for="inputTicker">
+              Kode Saham
+              <span class="hint">Contoh: BBRI, TLKM</span>
+            </label>
+            <input
+              type="text"
+              id="inputTicker"
+              class="form-input ticker-input"
+              placeholder="BBRI"
+              maxlength="6"
+              autocomplete="off"
+              autocapitalize="characters"
+              aria-required="true"
+            />
+          </div>
+
+          <!-- Current share price -->
+          <div class="form-group">
+            <label class="form-label" for="inputPrice">
+              Harga Saham Saat Ini
+              <span class="hint">Per lembar (Rp)</span>
+            </label>
+            <div class="input-wrapper">
+              <span class="input-prefix">Rp</span>
+              <input
+                type="number"
+                id="inputPrice"
+                class="form-input"
+                placeholder="5.400"
+                min="0"
+                step="any"
+                aria-required="true"
+              />
+            </div>
+          </div>
+
+          <!-- Net profit & total equity -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="inputNetProfit">
+                Laba Bersih
+                <span class="hint">Rp juta/miliar</span>
+              </label>
+              <div class="input-wrapper">
+                <span class="input-prefix">Rp</span>
+                <input
+                  type="number"
+                  id="inputNetProfit"
+                  class="form-input"
+                  placeholder="155.400.000.000"
+                  min="0"
+                  step="any"
+                  aria-required="true"
+                />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputEquity">
+                Total Ekuitas
+                <span class="hint">Rp juta/miliar</span>
+              </label>
+              <div class="input-wrapper">
+                <span class="input-prefix">Rp</span>
+                <input
+                  type="number"
+                  id="inputEquity"
+                  class="form-input"
+                  placeholder="570.000.000.000"
+                  min="0"
+                  step="any"
+                  aria-required="true"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Shares outstanding -->
+          <div class="form-group">
+            <label class="form-label" for="inputShares">
+              Jumlah Lembar Saham Beredar
+              <span class="hint">Lembar</span>
+            </label>
+            <input
+              type="number"
+              id="inputShares"
+              class="form-input"
+              placeholder="120.000.000.000"
+              min="1"
+              step="any"
+              aria-required="true"
+            />
+          </div>
+
+          <!-- Investment thesis -->
+          <div class="form-group">
+            <label class="form-label" for="inputThesis">
+              Tesis / Alasan Beli
+              <span class="hint">Opsional, tapi sangat direkomendasikan</span>
+            </label>
+            <textarea
+              id="inputThesis"
+              class="form-textarea"
+              placeholder="Tulis alasan investasi Anda... Contoh: BBRI merupakan bank dengan ekosistem UMKM terkuat di Indonesia. Dengan penetrasi digital banking melalui BRImo, growth EPS diperkirakan 12-15% CAGR dalam 5 tahun ke depan..."
+              rows="5"
+            ></textarea>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="btn-row">
+            <button class="btn btn-primary" id="btnCalculate" onclick="calculateAndSave()" aria-label="Hitung valuasi dan simpan ke arsip">
+              <span>Hitung &amp; Simpan</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="btn-icon"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+            <button class="btn btn-reset" onclick="resetForm()" aria-label="Reset semua input">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Right column: results dashboard -->
+        <div class="results-panel" id="resultsPanel">
+
+          <!-- Empty state, shown before first result -->
+          <div class="card empty-state" id="emptyState">
+                <img src="logo-kravv.png" alt="Watermark KRAVV" class="watermark-logo" onerror="this.style.display='none'">
+            <h3>Belum Ada Hasil Analisis</h3>
+            <p>Isi form di sebelah kiri dan klik <strong style="color:var(--accent-bright)">Hitung &amp; Simpan</strong> untuk melihat valuasi saham secara instan.</p>
+          </div>
+
+        </div>
+        
+
+      </div>
+      
+    </div>
+    
+<div id="view-draft" class="view">
+
+  <div class="archive-header">
+    <h2>Draft Analisis</h2>
+    <span id="draftCountBadge"
+      class="archive-count-badge">
+      0
+    </span>
+  </div>
+
+  <div id="draftGrid"
+       class="archive-grid">
+  </div>
+
+</div>
+    <!-- View: Archive -->
+    <div class="view" id="view-archive" role="tabpanel" aria-labelledby="tab-archive">
+
+      <!-- Archive header -->
+      <div class="archive-header">
+        <div class="section-header" style="margin-bottom:0; flex:1;">
+          <div class="dot"></div>
+          <span class="section-title">Arsip Portofolio &amp; Valuasi</span>
+          <span class="archive-count-badge" id="archiveCountBadge">0</span>
+          <div class="section-line"></div>
+        </div>
+        <button class="btn btn-clear-all" onclick="confirmClearAll()" id="btnClearAll" style="display:none;" aria-label="Hapus semua arsip">
+          Hapus Semua
+        </button>
+      </div>
+
+      <!-- Portfolio stats overview -->
+      <div class="stats-bar" id="statsBar" style="display:none;">
+        <div class="stat-item">
+          <div class="stat-label">Total Analisis</div>
+          <div class="stat-value accent" id="statTotal">0</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Skor Sempurna (3/3)</div>
+          <div class="stat-value bull" id="statPerfect">0</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Skor Menengah (2/3)</div>
+          <div class="stat-value neutral" id="statMid">0</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Skor Rendah (0-1)</div>
+          <div class="stat-value bear" id="statLow">0</div>
+        </div>
+      </div>
+
+      <!-- Search & sort toolbar -->
+      <div class="archive-toolbar">
+        <div class="search-wrapper">
+          <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input
+            type="text"
+            id="archiveSearch"
+            class="search-input"
+            placeholder="Cari kode saham atau tesis..."
+            oninput="renderArchive()"
+            aria-label="Cari di arsip"
+          />
+        </div>
+        <div class="sort-wrapper">
+          <select
+            id="archiveSort"
+            class="sort-select"
+            onchange="renderArchive()"
+            aria-label="Urutkan arsip"
+          >
+            <option value="date-desc">Terbaru</option>
+            <option value="date-asc">Terlama</option>
+            <option value="score-desc">Skor Tertinggi</option>
+            <option value="score-asc">Skor Terendah</option>
+            <option value="ticker-asc">Kode A-Z</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Archive grid -->
+      <div class="archive-grid" id="archiveGrid" role="list" aria-label="Daftar arsip analisis saham">
+        <!-- Populated by script.js -->
+      </div>
+
+    </div>
+    
+
+   <!-- View: Guide -->
+    <div class="view" id="view-guide" role="tabpanel" aria-labelledby="tab-guide">
+
+      <div class="section-header">
+        <div class="dot"></div>
+        <span class="section-title">Edukasi &amp; Panduan</span>
+        <div class="section-line"></div>
+      </div>
+
+      <!-- Tab Menu Navigasi Edukasi -->
+      <div class="guide-tabs">
+        <button class="guide-tab-btn active" onclick="switchGuideTab(event, 'dasar')">Edukasi Dasar</button>
+        <button class="guide-tab-btn" onclick="switchGuideTab(event, 'rasio')">Rasio Fundamental</button>
+        <button class="guide-tab-btn" onclick="switchGuideTab(event, 'sistem')">Panduan KRAVV</button>
+      </div>
+
+      <!-- SECTION 1: EDUKASI DASAR -->
+      <div class="guide-content active" id="guide-dasar">
+        
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="acc-title">Apa itu Valuasi Saham?</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Valuasi saham adalah proses mengukur <strong>nilai wajar (harga asli)</strong> dari suatu perusahaan. Harga saham yang bergerak naik-turun di bursa efek tidak selalu mencerminkan nilai asli perusahaan tersebut.</p>
+              <p>Bisa jadi harganya sedang sangat mahal (<em>Overvalued</em>) karena sedang hype, atau justru sedang dijual murah (<em>Undervalued</em>) karena pasar sedang panik.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="acc-title">Prinsip Value Investing</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Sebagai investor fundamental, tujuan utama kita adalah mencari perusahaan dengan kinerja bisnis yang hebat, laba yang bertumbuh, namun sahamnya sedang dihargai <strong>murah atau masuk akal</strong> oleh pasar saham.</p>
+              <p>Membeli di harga murah memberikan kita <em>Margin of Safety</em> (Batas Aman) untuk meminimalisir kerugian jika terjadi krisis.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="acc-title">Cara Mendapat Data Input?</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Untuk menggunakan kalkulator KRAVV, Anda membutuhkan data Laba Bersih, Total Ekuitas, dan Jumlah Saham Beredar. Data ini bisa didapatkan dari:</p>
+              <ul style="padding-left:16px; margin-top:8px;">
+                <li>Laporan Keuangan resmi di website IDX (idx.co.id).</li>
+                <li>Aplikasi pihak ketiga seperti RTI Business, Stockbit, atau aplikasi sekuritas Anda (cari bagian 'Key Statistics' atau 'Fundamental').</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SECTION 2: RASIO FUNDAMENTAL -->
+      <div class="guide-content" id="guide-rasio">
+        
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="guide-card-icon">EPS</span>
+              <span class="acc-title">Earnings Per Share</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Laba bersih yang dihasilkan perusahaan untuk setiap lembar saham yang beredar. Semakin tinggi EPS dari tahun ke tahun, semakin baik profitabilitas per saham perusahaan tersebut.</p>
+              <div class="formula-block">EPS = Laba Bersih ÷ Lembar Saham</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="guide-card-icon">BVPS</span>
+              <span class="acc-title">Book Value Per Share</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Nilai buku (aset bersih) per lembar saham. Menunjukkan nilai intrinsik aset perusahaan yang dimiliki oleh pemegang saham jika perusahaan tersebut dilikuidasi hari ini.</p>
+              <div class="formula-block">BVPS = Total Ekuitas ÷ Lembar Saham</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="guide-card-icon">PER</span>
+              <span class="acc-title">Price to Earnings Ratio</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Berapa kali investor bersedia membayar terhadap laba per saham. Angka <strong style="color:var(--color-bullish)">PER &lt; 15</strong> umumnya dianggap murah/undervalued untuk metode valuasi klasik.</p>
+              <div class="formula-block">PER = Harga Saham ÷ EPS</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="guide-card-icon">PBV</span>
+              <span class="acc-title">Price to Book Value</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Perbandingan harga pasar saham terhadap nilai bukunya. <strong style="color:var(--color-bullish)">PBV &lt; 1.5</strong> (atau di bawah 1) menandakan saham berpotensi dihargai lebih murah dari aset aslinya.</p>
+              <div class="formula-block">PBV = Harga Saham ÷ BVPS</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="guide-card-icon">ROE</span>
+              <span class="acc-title">Return on Equity</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Mengukur efisiensi perusahaan mencetak laba bersih menggunakan modal ekuitasnya. <strong style="color:var(--color-bullish)">ROE &gt; 15%</strong> merupakan indikator bisnis yang sangat sehat dan efisien mengelola modal pemegang saham.</p>
+              <div class="formula-block">ROE = (Laba Bersih ÷ Total Ekuitas) × 100%</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- SECTION 3: PANDUAN APLIKASI -->
+      <div class="guide-content" id="guide-sistem">
+
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="guide-card-icon">SKOR</span>
+              <span class="acc-title">Sistem Skoring KRAVV</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>Skor 0–3 yang dihasilkan aplikasi dinilai berdasarkan kriteria value investing standar. Gunakan skor ini sebagai <strong>screening awal</strong>, bukan keputusan mutlak.</p>
+              <div class="formula-block" style="line-height:1.8;">
+                PER &lt; 15 &nbsp;→&nbsp; +1 poin<br>
+                PBV &lt; 1.5 &nbsp;→&nbsp; +1 poin<br>
+                ROE &gt; 15% &nbsp;→&nbsp; +1 poin<br>
+                <br>
+                3/3 &nbsp;=&nbsp; Sangat Menarik (Wajib dianalisis lebih dalam)<br>
+                2/3 &nbsp;=&nbsp; Cukup Menarik<br>
+                0–1 &nbsp;=&nbsp; Perlu Kehati-hatian (Mungkin overvalued)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item">
+          <button class="accordion-header" onclick="toggleAccordion(this)">
+            <div class="acc-title-group">
+              <span class="guide-card-icon" style="color:var(--color-neutral); border-color:var(--color-neutral);">INFO</span>
+              <span class="acc-title" style="color:var(--color-neutral);">Disclaimer Penting</span>
+            </div>
+            <svg class="acc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div class="accordion-body">
+            <div class="accordion-inner">
+              <p>MY KRAVV adalah alat bantu analisis <strong>personal</strong>. Hasil kalkulasi ini bukan merupakan rekomendasi beli/jual atau ajakan investasi.</p>
+              <p>Selalu pelajari model bisnis perusahaan dan manajemennya. Lakukan riset mendalam sebelum berinvestasi. <em>Investasi saham mengandung risiko kehilangan sebagian atau seluruh modal.</em></p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  <!-- JAVASCRIPT — Logika Aplikasi Lengkap -->
+  <script src="script.js"></script>
+
+</body>
+</html>
